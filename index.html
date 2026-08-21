@@ -1,0 +1,614 @@
+<!doctype html>
+<html lang="id">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width,initial-scale=1" />
+        <title>Google Maps Timeline Merger</title>
+        <meta
+            name="description"
+            content="Gabungkan dua atau lebih file Google Maps Timeline JSON langsung di browser."
+        />
+        <style>
+            :root {
+                font-family:
+                    Inter,
+                    system-ui,
+                    -apple-system,
+                    BlinkMacSystemFont,
+                    "Segoe UI",
+                    Roboto,
+                    sans-serif;
+                color: #172033;
+                background: #f5f7fb;
+            }
+            * {
+                box-sizing: border-box;
+            }
+            body {
+                margin: 0;
+            }
+            .wrap {
+                width: 100%;
+                max-width: 980px;
+                margin: 0 auto;
+                padding: 48px 20px;
+            }
+            .hero {
+                text-align: center;
+                margin-bottom: 30px;
+            }
+            .hero h1 {
+                font-size: clamp(30px, 5vw, 48px);
+                margin: 0 0 10px;
+            }
+            .hero p {
+                color: #637087;
+                margin: 0;
+            }
+            .card {
+                width: 100%;
+                background: #fff;
+                border: 1px solid #e2e7ef;
+                border-radius: 18px;
+                padding: clamp(18px, 3vw, 28px);
+                box-shadow: 0 10px 30px rgba(23, 32, 51, 0.05);
+                margin-bottom: 18px;
+                overflow: hidden;
+            }
+            /* Upload area */
+            .drop {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                width: 100%;
+                min-height: 190px;
+                border: 2px dashed #b8c2d2;
+                border-radius: 16px;
+                padding: 32px 24px;
+                text-align: center;
+                cursor: pointer;
+                background: #fbfcfe;
+                transition:
+                    border-color 0.2s ease,
+                    background 0.2s ease,
+                    transform 0.2s ease;
+            }
+            .drop:hover {
+                border-color: #315efb;
+                background: #f2f5ff;
+            }
+            .drop.drag {
+                border-color: #315efb;
+                background: #f2f5ff;
+                transform: scale(1.01);
+            }
+            .drop strong {
+                display: block;
+                font-size: 18px;
+                line-height: 1.4;
+                margin-bottom: 8px;
+            }
+            .drop span {
+                display: block;
+                color: #718096;
+                font-size: 14px;
+                line-height: 1.5;
+            }
+            input[type="file"] {
+                display: none;
+            }
+            /* File list */
+            .files {
+                width: 100%;
+                margin-top: 18px;
+                display: flex;
+                flex-direction: column;
+                gap: 8px;
+            }
+            .file {
+                display: flex;
+                align-items: center;
+                gap: 14px;
+                width: 100%;
+                min-width: 0;
+                padding: 12px 14px;
+                background: #f7f9fc;
+                border: 1px solid #e8ecf2;
+                border-radius: 10px;
+                font-size: 14px;
+            }
+            .file span {
+                min-width: 0;
+                flex: 1;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+            }
+            .file small {
+                flex: 0 0 auto;
+                color: #718096;
+                font-size: 12px;
+                white-space: nowrap;
+            }
+            /* Stats */
+            .stats {
+                display: grid;
+                grid-template-columns: repeat(4, 1fr);
+                gap: 10px;
+                margin-top: 18px;
+            }
+            .stat {
+                background: #f7f9fc;
+                border-radius: 12px;
+                padding: 15px;
+                min-width: 0;
+            }
+            .stat b {
+                display: block;
+                font-size: 20px;
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }
+            .stat span {
+                font-size: 12px;
+                color: #718096;
+            }
+            /* Buttons */
+            .actions {
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                flex-wrap: wrap;
+                margin-top: 20px;
+            }
+            button {
+                border: 0;
+                border-radius: 10px;
+                padding: 12px 18px;
+                font-weight: 700;
+                font-size: 14px;
+                cursor: pointer;
+                transition:
+                    opacity 0.2s ease,
+                    transform 0.1s ease;
+            }
+            button:active {
+                transform: scale(0.98);
+            }
+            button.primary {
+                background: #315efb;
+                color: #fff;
+            }
+            button.secondary {
+                background: #e9edf5;
+                color: #263246;
+            }
+            button:disabled {
+                opacity: 0.45;
+                cursor: not-allowed;
+            }
+            button.download {
+                background: #16a34a;
+                color: #fff;
+            }
+            button.danger {
+                background: #dc2626;
+                color: #fff;
+            }
+            button.download:disabled,
+            button.danger:disabled {
+                opacity: 0.45;
+                cursor: not-allowed;
+            }
+            /* Status */
+            .status {
+                margin-top: 14px;
+                min-height: 20px;
+                font-size: 14px;
+            }
+            .status.ok {
+                color: #18794e;
+            }
+            .status.err {
+                color: #c53030;
+            }
+            /* Note */
+            .note {
+                font-size: 13px;
+                line-height: 1.6;
+                color: #596579;
+            }
+            .note code {
+                background: #eef1f6;
+                padding: 2px 5px;
+                border-radius: 4px;
+            }
+            /* Footer */
+            footer {
+                text-align: center;
+                color: #8993a3;
+                font-size: 12px;
+                margin-top: 28px;
+            }
+            /* Mobile */
+            @media (max-width: 650px) {
+                .wrap {
+                    padding: 28px 14px;
+                }
+                .card {
+                    padding: 16px;
+                }
+                .drop {
+                    min-height: 170px;
+                    padding: 26px 16px;
+                }
+                .stats {
+                    grid-template-columns: repeat(2, 1fr);
+                }
+                .file {
+                    align-items: flex-start;
+                }
+                .file span {
+                    line-height: 1.4;
+                }
+                .file small {
+                    font-size: 11px;
+                }
+                .actions {
+                    flex-direction: column;
+                    width: 100%;
+                }
+                .actions button {
+                    width: 100%;
+                }
+            }
+        </style>
+    </head>
+    <body>
+        <div class="wrap">
+            <div class="hero">
+                <h1>Google Maps Timeline Merger</h1>
+                <p>
+                    Gabungkan beberapa
+                    <code>Timeline.json</code>
+                    menjadi satu file.
+                </p>
+            </div>
+            <section class="card">
+                <!-- Upload -->
+                <label class="drop" id="drop">
+                    <strong> Pilih file Timeline.JSON </strong>
+                    <span> Klik di sini atau drag &amp; drop 2 atau lebih file .json </span>
+                    <input id="files" type="file" accept=".json,application/json" multiple />
+                </label>
+                <!-- File list -->
+                <div class="files" id="fileList"></div>
+                <!-- Statistics -->
+                <div class="stats">
+                    <div class="stat">
+                        <b id="fileCount">0</b>
+                        <span>File</span>
+                    </div>
+                    <div class="stat">
+                        <b id="segmentCount">0</b>
+                        <span>Semantic segments</span>
+                    </div>
+                    <div class="stat">
+                        <b id="signalCount">0</b>
+                        <span>Raw signals</span>
+                    </div>
+                    <div class="stat">
+                        <b id="dateRange">—</b>
+                        <span>Rentang tanggal</span>
+                    </div>
+                </div>
+                <!-- Buttons -->
+                <div class="actions">
+                    <button class="primary" id="merge" disabled>Gabungkan</button>
+                    <button class="download" id="download" disabled>Download</button>
+                    <button class="danger" id="clear" disabled>Hapus semua</button>
+                </div>
+                <!-- Status -->
+                <div class="status" id="status"></div>
+            </section>
+            <!-- Information -->
+            <section class="card note">
+                <b>Privasi:</b>
+                seluruh proses dilakukan secara lokal di browser. File Timeline.json tidak di-upload ke server.
+                <br /><br />
+                <b>Cara kerja:</b>
+                array
+                <code>semanticSegments</code>
+                dan
+                <code>rawSignals</code>
+                digabung, diurutkan berdasarkan waktu, lalu item yang identik persis dihapus. Properti root dari file
+                pertama dipertahankan, dan properti root yang hanya ada pada file lain ikut disalin.
+            </section>
+            <footer>Google Maps Timeline Merger with ❤️ by @Jovanzers</footer>
+        </div>
+        <script>
+            const input = document.getElementById("files");
+            const drop = document.getElementById("drop");
+            const list = document.getElementById("fileList");
+            const mergeBtn = document.getElementById("merge");
+            const downloadBtn = document.getElementById("download");
+            const statusEl = document.getElementById("status");
+            let selected = [];
+            let mergedResult = null;
+            /* ================================
+              File selection
+            ================================ */
+            input.addEventListener("change", function (e) {
+                addFiles([...e.target.files]);
+            });
+            /* ================================
+              Drag & Drop
+            ================================ */
+            drop.addEventListener("dragover", function (e) {
+                e.preventDefault();
+                drop.classList.add("drag");
+            });
+            drop.addEventListener("dragleave", function () {
+                drop.classList.remove("drag");
+            });
+            drop.addEventListener("drop", function (e) {
+                e.preventDefault();
+                drop.classList.remove("drag");
+                addFiles([...e.dataTransfer.files]);
+            });
+            /* ================================
+              Add files
+            ================================ */
+            function addFiles(files) {
+                const jsons = files.filter((f) => f.name.toLowerCase().endsWith(".json"));
+                const map = new Map(selected.map((f) => [f.name + "|" + f.size + "|" + f.lastModified, f]));
+                for (const f of jsons) {
+                    const key = f.name + "|" + f.size + "|" + f.lastModified;
+                    map.set(key, f);
+                }
+                selected = [...map.values()];
+                /*
+                 * File berubah → hasil merge
+                 * sebelumnya tidak berlaku lagi.
+                 */
+                mergedResult = null;
+                downloadBtn.disabled = true;
+                render();
+            }
+            /* ================================
+              Render files
+            ================================ */
+            function render() {
+                list.innerHTML = selected
+                    .map(
+                        (f) => `
+                    <div class="file">
+                        <span title="${esc(f.name)}">
+                            ${esc(f.name)}
+                        </span>
+                        <small>
+                            ${fmtBytes(f.size)}
+                        </small>
+                    </div>
+                `
+                    )
+                    .join("");
+                document.getElementById("fileCount").textContent = selected.length;
+                mergeBtn.disabled = selected.length < 2;
+                document.getElementById("clear").disabled = selected.length === 0;
+                document.getElementById("segmentCount").textContent = "0";
+                document.getElementById("signalCount").textContent = "0";
+                document.getElementById("dateRange").textContent = "—";
+                statusEl.textContent = "";
+                statusEl.className = "status";
+            }
+            /* ================================
+              Clear
+            ================================ */
+            document.getElementById("clear").onclick = function () {
+                selected = [];
+                mergedResult = null;
+                input.value = "";
+                downloadBtn.disabled = true;
+                render();
+            };
+            /* ================================
+              Escape HTML
+            ================================ */
+            function esc(s) {
+                return s.replace(
+                    /[&<>"']/g,
+                    function (m) {
+                        return {
+                            "&": "&amp;",
+                            "<": "&lt;",
+                            ">": "&gt;",
+                            '"': "&quot;",
+                            "'": "&#39;",
+                        }[m];
+                    }
+                );
+            }
+            /* ================================
+              Format file size
+            ================================ */
+            function fmtBytes(n) {
+                if (n < 1024) {
+                    return n + " B";
+                }
+                if (n < 1048576) {
+                    return (n / 1024).toFixed(1) + " KB";
+                }
+                return (n / 1048576).toFixed(1) + " MB";
+            }
+            /* ================================
+              MERGE BUTTON
+            ================================ */
+            mergeBtn.onclick = async function () {
+                mergeBtn.disabled = true;
+                downloadBtn.disabled = true;
+                mergedResult = null;
+                statusEl.className = "status";
+                statusEl.textContent = "Membaca dan menggabungkan...";
+                try {
+                    const docs = await Promise.all(
+                        selected.map(async function (f) {
+                            const text = await f.text();
+                            const data = JSON.parse(text);
+                            if (!data || typeof data !== "object" || Array.isArray(data)) {
+                                throw new Error(`${f.name}: root JSON tidak valid`);
+                            }
+                            return data;
+                        })
+                    );
+                    /*
+                     * Simpan hasil merge
+                     * di memory.
+                     */
+                    mergedResult = merge(docs);
+                    const seg = mergedResult.semanticSegments?.length || 0;
+                    const sig = mergedResult.rawSignals?.length || 0;
+                    document.getElementById("segmentCount").textContent = seg.toLocaleString("id-ID");
+                    document.getElementById("signalCount").textContent = sig.toLocaleString("id-ID");
+                    document.getElementById("dateRange").textContent = getRange(mergedResult);
+                    statusEl.className = "status ok";
+                    statusEl.textContent = `Merge berhasil. ${seg.toLocaleString(
+                        "id-ID"
+                    )} semantic segments dan ${sig.toLocaleString("id-ID")} raw signals.`;
+                    /*
+                     * Sekarang Download
+                     * baru diaktifkan.
+                     */
+                    downloadBtn.disabled = false;
+                } catch (e) {
+                    mergedResult = null;
+                    statusEl.className = "status err";
+                    statusEl.textContent = "Gagal: " + e.message;
+                } finally {
+                    mergeBtn.disabled = selected.length < 2;
+                }
+            };
+            /* ================================
+              DOWNLOAD BUTTON
+            ================================ */
+            downloadBtn.onclick = function () {
+                if (!mergedResult) {
+                    return;
+                }
+                statusEl.className = "status";
+                statusEl.textContent = "Menyiapkan file download...";
+                try {
+                    const blob = new Blob([JSON.stringify(mergedResult, null, 2)], {
+                        type: "application/json;charset=utf-8",
+                    });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement("a");
+                    a.href = url;
+                    a.download = "Timeline_gabungan.json";
+                    document.body.appendChild(a);
+                    a.click();
+                    a.remove();
+                    /*
+                     * Jangan revoke terlalu cepat
+                     * pada browser tertentu.
+                     */
+                    setTimeout(() => URL.revokeObjectURL(url), 1000);
+                    statusEl.className = "status ok";
+                    statusEl.textContent = "File berhasil didownload.";
+                } catch (e) {
+                    statusEl.className = "status err";
+                    statusEl.textContent = "Gagal download: " + e.message;
+                }
+            };
+            /* ================================
+              Merge JSON
+            ================================ */
+            function merge(docs) {
+                /*
+                 * File pertama menjadi dasar.
+                 */
+                const out = structuredClone(docs[0]);
+                const arrays = ["semanticSegments", "rawSignals"];
+                for (const key of arrays) {
+                    const all = [];
+                    for (const d of docs) {
+                        if (Array.isArray(d[key])) {
+                            all.push(...d[key]);
+                        }
+                    }
+                    /*
+                     * Hapus duplikat identik.
+                     */
+                    const unique = new Map();
+                    for (const item of all) {
+                        const k = stableStringify(item);
+                        if (!unique.has(k)) {
+                            unique.set(k, item);
+                        }
+                    }
+                    /*
+                     * Sort berdasarkan waktu.
+                     */
+                    out[key] = [...unique.values()].sort((a, b) => timeOf(a).localeCompare(timeOf(b)));
+                }
+                /*
+                 * Tambahkan properti root
+                 * yang hanya ada di file lain.
+                 */
+                for (const d of docs.slice(1)) {
+                    for (const [k, v] of Object.entries(d)) {
+                        if (!(k in out)) {
+                            out[k] = structuredClone(v);
+                        }
+                    }
+                }
+                return out;
+            }
+            /* ================================
+              Get timestamp
+            ================================ */
+            function timeOf(x) {
+                return x.startTime || x.time || x.endTime || x.timestamp || x.date || "";
+            }
+            /* ================================
+              Stable JSON stringify
+            ================================ */
+            function stableStringify(x) {
+                if (x === null || typeof x !== "object") {
+                    return JSON.stringify(x);
+                }
+                if (Array.isArray(x)) {
+                    return "[" + x.map(stableStringify).join(",") + "]";
+                }
+                return (
+                    "{" +
+                    Object.keys(x)
+                        .sort()
+                        .map((k) => JSON.stringify(k) + ":" + stableStringify(x[k]))
+                        .join(",") +
+                    "}"
+                );
+            }
+            /* ================================
+              Date range
+            ================================ */
+            function getRange(data) {
+                const times = [];
+                for (const x of data.semanticSegments || []) {
+                    if (x.startTime) times.push(x.startTime);
+                    if (x.endTime) times.push(x.endTime);
+                }
+                for (const x of data.rawSignals || []) {
+                    if (x.time) times.push(x.time);
+                    if (x.timestamp) times.push(x.timestamp);
+                }
+                if (!times.length) {
+                    return "—";
+                }
+                const d = times.filter(Boolean).sort();
+                return d[0].slice(0, 10) + " → " + d[d.length - 1].slice(0, 10);
+            }
+        </script>
+    </body>
+</html>
